@@ -1,41 +1,240 @@
-local plr = game:GetService("Players").LocalPlayer;
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local camera = workspace.CurrentCamera
+local plr = Players.LocalPlayer
 
-local old;
-old = hookmetamethod(game, "__index", function(self, key)
-   if not checkcaller() and key == "PlatformStand" and self.ClassName == "Humanoid" and self.Parent and plr.Character and self.Parent == plr.Character then -- Prevents PlatformStanding detections
-       return false
-   end
-   return old(self, key)
+-----------------------------------
+-- SCRIPT BYPASS ANTI-CHEAT (Dari Referensi)
+-----------------------------------
+-- Catatan: Bagian ini hanya akan berfungsi di executor, bukan di Roblox Studio standar.
+pcall(function()
+	local old;
+	old = hookmetamethod(game, "__index", function(self, key)
+	   if not checkcaller() and key == "PlatformStand" and self.ClassName == "Humanoid" and self.Parent and plr.Character and self.Parent == plr.Character then 
+	       return false
+	   end
+	   return old(self, key)
+	end)
+
+	game.DescendantAdded:Connect(function(d)
+	   if d.ClassName:find("Body") and plr.Character and d:IsDescendantOf(plr.Character) then
+	       
+	       local old_idx;
+	       local old_nc;
+	       
+	       old_idx = hookmetamethod(d, "__index", newcclosure(function(self, ...) 
+	           if not checkcaller() and self == d then
+	               local s,e = pcall(old_idx, self, ...)
+	               if not s then return error(e) end
+	               return
+	           end
+	           return old_idx(self, ...)
+	       end))
+	       
+	       old_nc = hookmetamethod(d, "__namecall", newcclosure(function(self, ...) 
+	           if not checkcaller() and self == d then
+	               local s,e = pcall(old_nc, self, ...)
+	               if not s then return error(e) end
+	               return
+	           end
+	           return old_nc(self, ...)
+	       end))
+	   end
+	end)
 end)
 
-game.DescendantAdded:Connect(function(d)
-   if d.ClassName:find("Body") and plr.Character and d:IsDescendantOf(plr.Character) then
-       
-       local old_idx;
-       local old_nc;
-       
-       old_idx = hookmetamethod(d, "__index", newcclosure(function(self, ...) -- Prevent indexing (checking properties, name, etc)
-           if not checkcaller() and self == d then
-               local s,e = pcall(old_idx, self, ...)
-               
-               if not s then
-                   return error(e)
-               end
-               return
-           end
-           return old_idx(self, ...)
-       end))
-       
-       old_nc = hookmetamethod(d, "__namecall", newcclosure(function(self, ...) -- Prevent namecalling (functions)
-           if not checkcaller() and self == d then
-               local s,e = pcall(old_nc, self, ...)
-               
-               if not s then
-                   return error(e)
-               end
-               return
-           end
-           return old_nc(self, ...)
-       end))
-   end
+-----------------------------------
+-- MEMBUAT GUI
+-----------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "HackGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = plr:WaitForChild("PlayerGui")
+
+-- Frame Utama
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 150, 0, 120) -- Diperbesar untuk 2 tombol
+MainFrame.Position = UDim2.new(1, -160, 0.5, -60)
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
+
+-- Tombol Noclip
+local NoclipBtn = Instance.new("TextButton")
+NoclipBtn.Size = UDim2.new(0.8, 0, 0.3, 0)
+NoclipBtn.Position = UDim2.new(0.1, 0, 0.2, 0)
+NoclipBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+NoclipBtn.Text = "NOCLIP: OFF"
+NoclipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+NoclipBtn.Font = Enum.Font.GothamBold
+NoclipBtn.TextSize = 14
+NoclipBtn.Parent = MainFrame
+
+local NoclipCorner = Instance.new("UICorner")
+NoclipCorner.CornerRadius = UDim.new(0, 6)
+NoclipCorner.Parent = NoclipBtn
+
+-- Tombol Fly
+local FlyBtn = Instance.new("TextButton")
+FlyBtn.Size = UDim2.new(0.8, 0, 0.3, 0)
+FlyBtn.Position = UDim2.new(0.1, 0, 0.6, 0)
+FlyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+FlyBtn.Text = "FLY: OFF"
+FlyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FlyBtn.Font = Enum.Font.GothamBold
+FlyBtn.TextSize = 14
+FlyBtn.Parent = MainFrame
+
+local FlyCorner = Instance.new("UICorner")
+FlyCorner.CornerRadius = UDim.new(0, 6)
+FlyCorner.Parent = FlyBtn
+
+-- Tombol Minimize
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0, 25, 0, 25)
+MinBtn.Position = UDim2.new(1, -30, 0, 5)
+MinBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+MinBtn.Text = "-"
+MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.TextSize = 18
+MinBtn.Parent = MainFrame
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinBtn
+
+-----------------------------------
+-- LOGIKA NOCLIP
+-----------------------------------
+local isNoclipping = false
+local noclipConnection = nil
+
+local function toggleNoclip()
+	isNoclipping = not isNoclipping
+	local char = plr.Character or plr.CharacterAdded:Wait()
+
+	if isNoclipping then
+		NoclipBtn.Text = "NOCLIP: ON"
+		NoclipBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+		noclipConnection = RunService.Stepped:Connect(function()
+			for _, part in ipairs(char:GetDescendants()) do
+				if part:IsA("BasePart") and part.CanCollide then
+					part.CanCollide = false
+				end
+			end
+		end)
+	else
+		NoclipBtn.Text = "NOCLIP: OFF"
+		NoclipBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+		if noclipConnection then noclipConnection:Disconnect() end
+	end
+end
+
+-----------------------------------
+-- LOGIKA FLY (Menggunakan BodyMover)
+-----------------------------------
+local isFlying = false
+local flySpeed = 50
+local flyLoop = nil
+local bGyro, bVelocity = nil, nil
+
+local function toggleFly()
+	isFlying = not isFlying
+	local char = plr.Character or plr.CharacterAdded:Wait()
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	local humanoid = char:WaitForChild("Humanoid")
+
+	if isFlying then
+		FlyBtn.Text = "FLY: ON"
+		FlyBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+		humanoid.PlatformStand = true
+
+		-- Membuat BodyMover (Akan disembunyikan oleh bypass scriptmu)
+		bGyro = Instance.new("BodyGyro")
+		bGyro.P = 9e4
+		bGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+		bGyro.CFrame = hrp.CFrame
+		bGyro.Parent = hrp
+
+		bVelocity = Instance.new("BodyVelocity")
+		bVelocity.Velocity = Vector3.new(0,0,0)
+		bVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+		bVelocity.Parent = hrp
+
+		flyLoop = RunService.RenderStepped:Connect(function()
+			local moveDir = Vector3.new(0, 0, 0)
+			if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camera.CFrame.LookVector end
+			if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camera.CFrame.LookVector end
+			if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camera.CFrame.RightVector end
+			if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camera.CFrame.RightVector end
+
+			bGyro.CFrame = camera.CFrame
+			bVelocity.Velocity = moveDir * flySpeed
+		end)
+	else
+		FlyBtn.Text = "FLY: OFF"
+		FlyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+		humanoid.PlatformStand = false
+		if bGyro then bGyro:Destroy() end
+		if bVelocity then bVelocity:Destroy() end
+		if flyLoop then flyLoop:Disconnect() end
+	end
+end
+
+-----------------------------------
+-- LOGIKA MINIMIZE & DRAG GUI
+-----------------------------------
+local isMinimized = false
+local originalSize = UDim2.new(0, 150, 0, 120)
+
+local function toggleMinimize()
+	isMinimized = not isMinimized
+	if isMinimized then
+		NoclipBtn.Visible = false
+		FlyBtn.Visible = false
+		MainFrame.Size = UDim2.new(0, 35, 0, 35)
+		MinBtn.Text = "+"
+		MinBtn.Position = UDim2.new(0, 5, 0, 5)
+	else
+		MainFrame.Size = originalSize
+		NoclipBtn.Visible = true
+		FlyBtn.Visible = true
+		MinBtn.Text = "-"
+		MinBtn.Position = UDim2.new(1, -30, 0, 5)
+	end
+end
+
+-- Drag Logic
+local dragging, dragInput, dragStart, startPos
+MainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = MainFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+		end)
+	end
 end)
+MainFrame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+NoclipBtn.MouseButton1Click:Connect(toggleNoclip)
+FlyBtn.MouseButton1Click:Connect(toggleFly)
+MinBtn.MouseButton1Click:Connect(toggleMinimize)
