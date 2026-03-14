@@ -1,141 +1,41 @@
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local plr = game:GetService("Players").LocalPlayer;
 
-local player = Players.LocalPlayer
-local camera = workspace.CurrentCamera
+local old;
+old = hookmetamethod(game, "__index", function(self, key)
+   if not checkcaller() and key == "PlatformStand" and self.ClassName == "Humanoid" and self.Parent and plr.Character and self.Parent == plr.Character then -- Prevents PlatformStanding detections
+       return false
+   end
+   return old(self, key)
+end)
 
--- Konfigurasi Kecepatan Terbang
-local flySpeed = 50
-
--- Status Toggle
-local isFlying = false
-local flyConnection = nil
-
------------------------------------
--- MEMBUAT GUI
------------------------------------
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FlyNoclipGui"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
-
--- Frame Utama (Di kanan tengah)
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 150, 0, 80)
-MainFrame.Position = UDim2.new(1, -160, 0.5, -40) -- Posisi paling kanan
-MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = MainFrame
-
--- Tombol Toggle Fly/Noclip
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0.8, 0, 0.5, 0)
-ToggleBtn.Position = UDim2.new(0.1, 0, 0.35, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-ToggleBtn.Text = "FLY: OFF"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 14
-ToggleBtn.Parent = MainFrame
-
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 6)
-ToggleCorner.Parent = ToggleBtn
-
--- Tombol Minimize
-local MinBtn = Instance.new("TextButton")
-MinBtn.Size = UDim2.new(0, 25, 0, 25)
-MinBtn.Position = UDim2.new(1, -30, 0, 5)
-MinBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-MinBtn.Text = "-"
-MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinBtn.Font = Enum.Font.GothamBold
-MinBtn.TextSize = 18
-MinBtn.Parent = MainFrame
-
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 6)
-MinCorner.Parent = MinBtn
-
------------------------------------
--- LOGIKA FLY & NOCLIP
------------------------------------
-local function toggleFlyNoclip()
-	isFlying = not isFlying
-	local char = player.Character or player.CharacterAdded:Wait()
-	local humanoid = char:WaitForChild("Humanoid")
-	local hrp = char:WaitForChild("HumanoidRootPart")
-
-	if isFlying then
-		ToggleBtn.Text = "FLY: ON"
-		ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-		humanoid.PlatformStand = true -- Membuat karakter melayang/tidak jatuh
-
-		-- Loop yang berjalan setiap frame
-		flyConnection = RunService.RenderStepped:Connect(function(deltaTime)
-			-- 1. Logika Noclip (Menembus tembok)
-			for _, part in ipairs(char:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = false
-				end
-			end
-
-			-- 2. Logika Terbang
-			local moveDir = Vector3.new(0, 0, 0)
-			if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camera.CFrame.LookVector end
-			if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camera.CFrame.LookVector end
-			if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camera.CFrame.RightVector end
-			if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camera.CFrame.RightVector end
-			if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
-			if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
-
-			if moveDir.Magnitude > 0 then
-				moveDir = moveDir.Unit
-			end
-
-			-- Update posisi karakter
-			hrp.CFrame = hrp.CFrame + (moveDir * flySpeed * deltaTime)
-		end)
-	else
-		-- Mematikan Fly & Noclip
-		ToggleBtn.Text = "FLY: OFF"
-		ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-		humanoid.PlatformStand = false
-		if flyConnection then
-			flyConnection:Disconnect()
-			flyConnection = nil
-		end
-	end
-end
-
------------------------------------
--- LOGIKA MINIMIZE GUI
------------------------------------
-local isMinimized = false
-local function toggleMinimize()
-	isMinimized = not isMinimized
-	if isMinimized then
-		-- Sembunyikan tombol toggle dan perkecil frame
-		ToggleBtn.Visible = false
-		MainFrame.Size = UDim2.new(0, 35, 0, 35)
-		MainFrame.Position = UDim2.new(1, -45, 0.5, -40)
-		MinBtn.Text = "+"
-		MinBtn.Position = UDim2.new(0, 5, 0, 5)
-	else
-		-- Kembalikan ukuran frame
-		MainFrame.Size = UDim2.new(0, 150, 0, 80)
-		MainFrame.Position = UDim2.new(1, -160, 0.5, -40)
-		ToggleBtn.Visible = true
-		MinBtn.Text = "-"
-		MinBtn.Position = UDim2.new(1, -30, 0, 5)
-	end
-end
-
--- Menghubungkan fungsi ke klik tombol
-ToggleBtn.MouseButton1Click:Connect(toggleFlyNoclip)
-MinBtn.MouseButton1Click:Connect(toggleMinimize)
+game.DescendantAdded:Connect(function(d)
+   if d.ClassName:find("Body") and plr.Character and d:IsDescendantOf(plr.Character) then
+       
+       local old_idx;
+       local old_nc;
+       
+       old_idx = hookmetamethod(d, "__index", newcclosure(function(self, ...) -- Prevent indexing (checking properties, name, etc)
+           if not checkcaller() and self == d then
+               local s,e = pcall(old_idx, self, ...)
+               
+               if not s then
+                   return error(e)
+               end
+               return
+           end
+           return old_idx(self, ...)
+       end))
+       
+       old_nc = hookmetamethod(d, "__namecall", newcclosure(function(self, ...) -- Prevent namecalling (functions)
+           if not checkcaller() and self == d then
+               local s,e = pcall(old_nc, self, ...)
+               
+               if not s then
+                   return error(e)
+               end
+               return
+           end
+           return old_nc(self, ...)
+       end))
+   end
+end)
